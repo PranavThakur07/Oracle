@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { authService } from '../services/api';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User as UserIcon, AlertCircle, ArrowRight } from 'lucide-react';
 
@@ -13,6 +14,67 @@ export const Login: React.FC = () => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const config = await authService.getConfig();
+        if (config.google_client_id) {
+          setGoogleClientId(config.google_client_id);
+          
+          // Load Google Identity Services library
+          const script = document.createElement('script');
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.async = true;
+          script.defer = true;
+          document.body.appendChild(script);
+          
+          script.onload = () => {
+            initializeGoogleSignIn(config.google_client_id!);
+          };
+        }
+      } catch (err) {
+        console.error("Failed to load auth config:", err);
+      }
+    };
+    
+    fetchConfig();
+  }, []);
+
+  const initializeGoogleSignIn = (clientId: string) => {
+    const google = (window as any).google;
+    if (google && google.accounts && google.accounts.id) {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleGoogleCredentialResponse,
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('google-signin-button-container'),
+        { 
+          theme: 'filled_black', 
+          size: 'large', 
+          width: 320, 
+          shape: 'rectangular', 
+          text: 'continue_with', 
+          logo_alignment: 'left' 
+        }
+      );
+    }
+  };
+
+  const handleGoogleCredentialResponse = async (response: any) => {
+    setError('');
+    setLoading(true);
+    try {
+      await googleLogin(response.credential);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Google sign-in failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +98,15 @@ export const Login: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      // Sends a mock OAuth token to trigger backend exchange
-      await googleLogin('mock_oracle_analyst');
+      // Generate a unique mock user ID per browser/device to avoid shared account histories
+      let mockUserId = localStorage.getItem('oracle_mock_user_id');
+      if (!mockUserId) {
+        mockUserId = 'analyst_' + Math.random().toString(36).substring(2, 8);
+        localStorage.setItem('oracle_mock_user_id', mockUserId);
+      }
+      
+      // Sends a unique mock OAuth token to backend (starts with mock_)
+      await googleLogin(`mock_${mockUserId}`);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Google authentication simulation failed.');
@@ -146,22 +215,28 @@ export const Login: React.FC = () => {
           <div className="flex-grow border-t border-zinc-900"></div>
         </div>
 
-        {/* Google OAuth Simulation Button */}
-        <button
-          onClick={handleSimulateGoogle}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-all disabled:opacity-50 font-medium"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-            <g transform="matrix(1, 0, 0, 1, 0, 0)">
-              <path d="M21.35,11.1H12v2.7h5.38c-0.24,1.28 -0.96,2.37 -2.04,3.1v2.58h3.3c1.93,-1.78 3.04,-4.4 3.04,-7.48C21.68,11.83 21.56,11.41 21.35,11.1z" fill="#4285F4" />
-              <path d="M12,20.84c2.47,0 4.54,-0.82 6.06,-2.23l-3.3,-2.58c-0.91,0.61 -2.08,0.98 -3.3,0.98 -2.37,0 -4.38,-1.6 -5.1,-3.75H2.93v2.66C4.46,19.18 7.97,20.84 12,20.84z" fill="#34A853" />
-              <path d="M6.9,13.26c-0.18,-0.54 -0.28,-1.11 -0.28,-1.7c0,-0.59 0.1,-1.16 0.28,-1.7V7.2H2.93C2.3,8.47 1.94,9.91 1.94,11.56c0,1.65 0.36,3.09 0.99,4.36L6.9,13.26z" fill="#FBBC05" />
-              <path d="M12,5.56c1.34,0 2.55,0.46 3.5,1.36l2.62,-2.62C16.53,2.83 14.47,2.28 12,2.28 7.97,2.28 4.46,3.94 2.93,7.2L6.9,9.86C7.62,7.71 9.63,5.56 12,5.56z" fill="#EA4335" />
-            </g>
-          </svg>
-          <span>Continue with Google</span>
-        </button>
+        {/* Google Authentication Container */}
+        {googleClientId ? (
+          <div className="flex justify-center w-full py-1">
+            <div id="google-signin-button-container" className="w-full flex justify-center"></div>
+          </div>
+        ) : (
+          <button
+            onClick={handleSimulateGoogle}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-all disabled:opacity-50 font-medium cursor-pointer"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+              <g transform="matrix(1, 0, 0, 1, 0, 0)">
+                <path d="M21.35,11.1H12v2.7h5.38c-0.24,1.28 -0.96,2.37 -2.04,3.1v2.58h3.3c1.93,-1.78 3.04,-4.4 3.04,-7.48C21.68,11.83 21.56,11.41 21.35,11.1z" fill="#4285F4" />
+                <path d="M12,20.84c2.47,0 4.54,-0.82 6.06,-2.23l-3.3,-2.58c-0.91,0.61 -2.08,0.98 -3.3,0.98 -2.37,0 -4.38,-1.6 -5.1,-3.75H2.93v2.66C4.46,19.18 7.97,20.84 12,20.84z" fill="#34A853" />
+                <path d="M6.9,13.26c-0.18,-0.54 -0.28,-1.11 -0.28,-1.7c0,-0.59 0.1,-1.16 0.28,-1.7V7.2H2.93C2.3,8.47 1.94,9.91 1.94,11.56c0,1.65 0.36,3.09 0.99,4.36L6.9,13.26z" fill="#FBBC05" />
+                <path d="M12,5.56c1.34,0 2.55,0.46 3.5,1.36l2.62,-2.62C16.53,2.83 14.47,2.28 12,2.28 7.97,2.28 4.46,3.94 2.93,7.2L6.9,9.86C7.62,7.71 9.63,5.56 12,5.56z" fill="#EA4335" />
+              </g>
+            </svg>
+            <span>Continue with Google (Demo Sandbox)</span>
+          </button>
+        )}
 
         <div className="text-center text-xs text-zinc-500 pt-2">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}

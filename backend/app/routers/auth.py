@@ -104,3 +104,10 @@ async def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.get("/config")
+def get_config():
+    from app.config import GOOGLE_CLIENT_ID
+    client_id = GOOGLE_CLIENT_ID if GOOGLE_CLIENT_ID != "placeholder-client-id.apps.googleusercontent.com" else None
+    return {"google_client_id": client_id}
+

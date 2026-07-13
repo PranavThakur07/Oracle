@@ -137,6 +137,11 @@ export const authService = {
     return response.data;
   },
 
+  async getConfig() {
+    const response = await api.get<{ google_client_id: string | null }>('/auth/config');
+    return response.data;
+  },
+
   logout() {
     localStorage.removeItem('oracle_token');
   },
