@@ -1,6 +1,7 @@
 import httpx
 import json
 import logging
+import asyncio
 from typing import Dict, Any, List
 from app.config import GEMINI_API_KEY
 from app.services.provider import AIProvider
@@ -111,43 +112,60 @@ class GeminiProvider(AIProvider):
         headers = {"Content-Type": "application/json"}
 
         async with httpx.AsyncClient(timeout=90.0) as client:
-            try:
-                logger.info("Sending initial simulation request to Gemini API...")
-                response = await client.post(url, json=payload, headers=headers)
-                
-                if response.status_code != 200:
-                    logger.error(f"Gemini API error {response.status_code}: {response.text}")
-                    raise Exception(f"Gemini API returned code {response.status_code}")
+            max_retries = 3
+            delay = 1.5
+            response = None
+            
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f"Sending initial simulation request to Gemini API (Attempt {attempt + 1}/{max_retries})...")
+                    response = await client.post(url, json=payload, headers=headers)
+                    
+                    if response.status_code == 200:
+                        break
+                    elif response.status_code in [429, 503] and attempt < max_retries - 1:
+                        logger.warning(f"Gemini API returned transient status {response.status_code}. Retrying in {delay}s...")
+                        await asyncio.sleep(delay)
+                        delay *= 2.0
+                    else:
+                        logger.error(f"Gemini API error {response.status_code}: {response.text}")
+                        raise Exception(f"Gemini API returned code {response.status_code}")
+                except httpx.RequestError as exc:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"HTTP Request error: {exc}. Retrying in {delay}s...")
+                        await asyncio.sleep(delay)
+                        delay *= 2.0
+                    else:
+                        raise exc
 
-                result = response.json()
-                content_text = result["candidates"][0]["content"]["parts"][0]["text"]
-                raw_result = json.loads(content_text)
-                
-                # Convert list-based comparison_metrics to dict for frontend
-                metrics_list = raw_result.get("comparison_metrics", [])
-                metrics_dict = {}
-                for entry in metrics_list:
-                    metrics_dict[entry.get("scenario_id")] = {
-                        "risk": entry.get("risk", 0),
-                        "cost": entry.get("cost", 0),
-                        "growth": entry.get("growth", 0),
-                        "learning": entry.get("learning", 0),
-                        "work_life_balance": entry.get("work_life_balance", 0)
-                    }
-                raw_result["comparison_metrics"] = metrics_dict
+            if not response or response.status_code != 200:
+                raise Exception(f"Gemini API returned code {response.status_code if response else 'Unknown'}")
 
-                # Convert list-based recommendations to dict for frontend
-                recs_list = raw_result.get("recommendations", [])
-                recs_dict = {}
-                for entry in recs_list:
-                    recs_dict[entry.get("priority")] = entry.get("scenario_id")
-                raw_result["recommendations"] = recs_dict
-
-                return raw_result
+            result = response.json()
+            content_text = result["candidates"][0]["content"]["parts"][0]["text"]
+            raw_result = json.loads(content_text)
                 
-            except Exception as e:
-                logger.error(f"Error communicating with Gemini: {e}")
-                raise e
+            # Convert list-based comparison_metrics to dict for frontend
+            metrics_list = raw_result.get("comparison_metrics", [])
+            metrics_dict = {}
+            for entry in metrics_list:
+                metrics_dict[entry.get("scenario_id")] = {
+                    "risk": entry.get("risk", 0),
+                    "cost": entry.get("cost", 0),
+                    "growth": entry.get("growth", 0),
+                    "learning": entry.get("learning", 0),
+                    "work_life_balance": entry.get("work_life_balance", 0)
+                }
+            raw_result["comparison_metrics"] = metrics_dict
+
+            # Convert list-based recommendations to dict for frontend
+            recs_list = raw_result.get("recommendations", [])
+            recs_dict = {}
+            for entry in recs_list:
+                recs_dict[entry.get("priority")] = entry.get("scenario_id")
+            raw_result["recommendations"] = recs_dict
+
+            return raw_result
 
     async def generate_followup(
         self,
@@ -214,42 +232,59 @@ class GeminiProvider(AIProvider):
         headers = {"Content-Type": "application/json"}
 
         async with httpx.AsyncClient(timeout=90.0) as client:
-            try:
-                logger.info("Sending follow-up request to Gemini API...")
-                response = await client.post(url, json=payload, headers=headers)
-                
-                if response.status_code != 200:
-                    logger.error(f"Gemini API follow-up error {response.status_code}: {response.text}")
-                    raise Exception(f"Gemini API returned code {response.status_code}")
+            max_retries = 3
+            delay = 1.5
+            response = None
 
-                result = response.json()
-                content_text = result["candidates"][0]["content"]["parts"][0]["text"]
-                raw_result = json.loads(content_text)
+            for attempt in range(max_retries):
+                try:
+                    logger.info(f"Sending follow-up request to Gemini API (Attempt {attempt + 1}/{max_retries})...")
+                    response = await client.post(url, json=payload, headers=headers)
+                    
+                    if response.status_code == 200:
+                        break
+                    elif response.status_code in [429, 503] and attempt < max_retries - 1:
+                        logger.warning(f"Gemini API follow-up returned transient status {response.status_code}. Retrying in {delay}s...")
+                        await asyncio.sleep(delay)
+                        delay *= 2.0
+                    else:
+                        logger.error(f"Gemini API follow-up error {response.status_code}: {response.text}")
+                        raise Exception(f"Gemini API returned code {response.status_code}")
+                except httpx.RequestError as exc:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"HTTP Request error: {exc}. Retrying in {delay}s...")
+                        await asyncio.sleep(delay)
+                        delay *= 2.0
+                    else:
+                        raise exc
 
-                # Convert updated_comparison_metrics list to dict if present
-                if "updated_comparison_metrics" in raw_result and isinstance(raw_result["updated_comparison_metrics"], list):
-                    metrics_list = raw_result["updated_comparison_metrics"]
-                    metrics_dict = {}
-                    for entry in metrics_list:
-                        metrics_dict[entry.get("scenario_id")] = {
-                            "risk": entry.get("risk", 0),
-                            "cost": entry.get("cost", 0),
-                            "growth": entry.get("growth", 0),
-                            "learning": entry.get("learning", 0),
-                            "work_life_balance": entry.get("work_life_balance", 0)
-                        }
-                    raw_result["updated_comparison_metrics"] = metrics_dict
+            if not response or response.status_code != 200:
+                raise Exception(f"Gemini API returned code {response.status_code if response else 'Unknown'}")
 
-                # Convert updated_recommendations list to dict if present
-                if "updated_recommendations" in raw_result and isinstance(raw_result["updated_recommendations"], list):
-                    recs_list = raw_result["updated_recommendations"]
-                    recs_dict = {}
-                    for entry in recs_list:
-                        recs_dict[entry.get("priority")] = entry.get("scenario_id")
-                    raw_result["updated_recommendations"] = recs_dict
+            result = response.json()
+            content_text = result["candidates"][0]["content"]["parts"][0]["text"]
+            raw_result = json.loads(content_text)
 
-                return raw_result
-                
-            except Exception as e:
-                logger.error(f"Error during Gemini follow-up generation: {e}")
-                raise e
+            # Convert updated_comparison_metrics list to dict if present
+            if "updated_comparison_metrics" in raw_result and isinstance(raw_result["updated_comparison_metrics"], list):
+                metrics_list = raw_result["updated_comparison_metrics"]
+                metrics_dict = {}
+                for entry in metrics_list:
+                    metrics_dict[entry.get("scenario_id")] = {
+                        "risk": entry.get("risk", 0),
+                        "cost": entry.get("cost", 0),
+                        "growth": entry.get("growth", 0),
+                        "learning": entry.get("learning", 0),
+                        "work_life_balance": entry.get("work_life_balance", 0)
+                    }
+                raw_result["updated_comparison_metrics"] = metrics_dict
+
+            # Convert updated_recommendations list to dict if present
+            if "updated_recommendations" in raw_result and isinstance(raw_result["updated_recommendations"], list):
+                recs_list = raw_result["updated_recommendations"]
+                recs_dict = {}
+                for entry in recs_list:
+                    recs_dict[entry.get("priority")] = entry.get("scenario_id")
+                raw_result["updated_recommendations"] = recs_dict
+
+            return raw_result

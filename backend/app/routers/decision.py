@@ -44,9 +44,15 @@ async def analyze_decision(
         
         return new_decision
     except Exception as e:
+        err_msg = str(e)
+        if "503" in err_msg or "429" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The AI Decision Engine is experiencing temporary high demand. Please try again in a moment."
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Decision simulation failed: {str(e)}"
+            detail=f"Decision simulation failed: {err_msg}"
         )
 
 @router.get("/history", response_model=List[DecisionOut])
@@ -156,9 +162,15 @@ async def create_followup(
 
         return new_followup
     except Exception as e:
+        err_msg = str(e)
+        if "503" in err_msg or "429" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="The AI Decision Engine is experiencing temporary high demand. Please try again in a moment."
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Follow-up generation failed: {str(e)}"
+            detail=f"Follow-up generation failed: {err_msg}"
         )
 
 @router.get("/history/{id}/export")
