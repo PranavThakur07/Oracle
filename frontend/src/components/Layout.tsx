@@ -13,8 +13,7 @@ import {
   Star, 
   Search, 
   ChevronRight,
-  BookOpen,
-  Settings
+  BookOpen
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -29,8 +28,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [history, setHistory] = useState<Decision[]>([]);
   const [search, setSearch] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [apiUrlInput, setApiUrlInput] = useState('');
 
   // Command Palette States
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -46,7 +43,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
       if (e.key === 'Escape') {
         setCommandPaletteOpen(false);
-        setSettingsOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -56,7 +52,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const defaultCommands = [
     { label: 'Create New Simulation', action: () => navigate('/dashboard'), category: 'Navigation' },
     { label: 'View Simulation History Log', action: () => navigate('/history'), category: 'Navigation' },
-    { label: 'Open System Settings', action: () => setSettingsOpen(true), category: 'Configuration' },
   ];
 
   const filteredCommands = [
@@ -93,22 +88,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => window.removeEventListener('keydown', handleNavigation);
   }, [commandPaletteOpen, selectedCommandIndex, filteredCommands]);
 
-  // Set initial input value when settings open
-  useEffect(() => {
-    if (settingsOpen) {
-      setApiUrlInput(localStorage.getItem('oracle_api_url') || '');
-    }
-  }, [settingsOpen]);
 
-  const handleSaveSettings = () => {
-    if (apiUrlInput.trim()) {
-      localStorage.setItem('oracle_api_url', apiUrlInput.trim());
-    } else {
-      localStorage.removeItem('oracle_api_url');
-    }
-    setSettingsOpen(false);
-    window.location.reload();
-  };
 
   const fetchHistory = async () => {
     if (!user) return;
@@ -185,14 +165,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="text-[10px] text-zinc-500 font-mono">Premium Analyst</span>
             </div>
             
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all border border-zinc-800/50 hover:border-zinc-800"
-              title="System Settings"
-            >
-              <Settings size={16} />
-            </button>
-
             <button
               onClick={handleLogout}
               className="p-2 rounded-lg text-zinc-400 hover:text-danger hover:bg-danger/10 transition-all border border-zinc-800/50 hover:border-danger/30"
@@ -287,67 +259,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </main>
       </div>
-
-      {/* Settings Modal */}
-      {settingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden shadow-2xl animate-slide-up">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-zinc-900 flex justify-between items-center bg-zinc-900/20">
-              <div className="flex items-center gap-2">
-                <Settings size={18} className="text-primary animate-pulse-slow" />
-                <h3 className="font-display font-bold text-lg text-white">System Settings</h3>
-              </div>
-              <button 
-                onClick={() => setSettingsOpen(false)}
-                className="p-1 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-white transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            
-            {/* Modal Content */}
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                  API Backend URL
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. https://xxxx.ngrok-free.app/api or http://localhost:8000/api"
-                  value={apiUrlInput}
-                  onChange={(e) => setApiUrlInput(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors font-mono"
-                />
-                <p className="mt-2 text-[11px] text-zinc-500 leading-relaxed">
-                  Provide your Ngrok tunnel URL (including the <code className="text-zinc-400">/api</code> suffix) to connect your Netlify frontend to a local backend. If left blank, it defaults to your build environment variable or <code className="text-zinc-400">http://localhost:8000/api</code>.
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="px-6 py-4 border-t border-zinc-900 bg-zinc-900/10 flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setApiUrlInput('');
-                  localStorage.removeItem('oracle_api_url');
-                  setSettingsOpen(false);
-                  window.location.reload();
-                }}
-                className="px-4 py-2 text-xs font-semibold rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all border border-zinc-800"
-              >
-                Reset Default
-              </button>
-              <button
-                onClick={handleSaveSettings}
-                className="px-4 py-2 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-white transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)] hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]"
-              >
-                Save & Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Command Palette Modal */}
       {commandPaletteOpen && (
