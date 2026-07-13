@@ -94,27 +94,6 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleSimulateGoogle = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      // Generate a unique mock user ID per browser/device to avoid shared account histories
-      let mockUserId = localStorage.getItem('oracle_mock_user_id');
-      if (!mockUserId) {
-        mockUserId = 'analyst_' + Math.random().toString(36).substring(2, 8);
-        localStorage.setItem('oracle_mock_user_id', mockUserId);
-      }
-      
-      // Sends a unique mock OAuth token to backend (starts with mock_)
-      await googleLogin(`mock_${mockUserId}`);
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Google authentication simulation failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background grid-bg flex items-center justify-center p-6 text-zinc-100 font-sans">
       <div className="absolute top-10 left-10 flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
@@ -221,21 +200,12 @@ export const Login: React.FC = () => {
             <div id="google-signin-button-container" className="w-full flex justify-center"></div>
           </div>
         ) : (
-          <button
-            onClick={handleSimulateGoogle}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-all disabled:opacity-50 font-medium cursor-pointer"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-              <g transform="matrix(1, 0, 0, 1, 0, 0)">
-                <path d="M21.35,11.1H12v2.7h5.38c-0.24,1.28 -0.96,2.37 -2.04,3.1v2.58h3.3c1.93,-1.78 3.04,-4.4 3.04,-7.48C21.68,11.83 21.56,11.41 21.35,11.1z" fill="#4285F4" />
-                <path d="M12,20.84c2.47,0 4.54,-0.82 6.06,-2.23l-3.3,-2.58c-0.91,0.61 -2.08,0.98 -3.3,0.98 -2.37,0 -4.38,-1.6 -5.1,-3.75H2.93v2.66C4.46,19.18 7.97,20.84 12,20.84z" fill="#34A853" />
-                <path d="M6.9,13.26c-0.18,-0.54 -0.28,-1.11 -0.28,-1.7c0,-0.59 0.1,-1.16 0.28,-1.7V7.2H2.93C2.3,8.47 1.94,9.91 1.94,11.56c0,1.65 0.36,3.09 0.99,4.36L6.9,13.26z" fill="#FBBC05" />
-                <path d="M12,5.56c1.34,0 2.55,0.46 3.5,1.36l2.62,-2.62C16.53,2.83 14.47,2.28 12,2.28 7.97,2.28 4.46,3.94 2.93,7.2L6.9,9.86C7.62,7.71 9.63,5.56 12,5.56z" fill="#EA4335" />
-              </g>
-            </svg>
-            <span>Continue with Google (Demo Sandbox)</span>
-          </button>
+          <div className="p-3 text-[11px] text-zinc-500 border border-zinc-900 bg-zinc-950/20 rounded-xl flex items-start gap-2 leading-relaxed">
+            <AlertCircle size={14} className="text-zinc-400 shrink-0 mt-0.5" />
+            <span>
+              Google Sign-In is not configured. Set <code className="text-zinc-300 font-mono text-[10px]">GOOGLE_CLIENT_ID</code> in your backend environment variables to enable it.
+            </span>
+          </div>
         )}
 
         <div className="text-center text-xs text-zinc-500 pt-2">

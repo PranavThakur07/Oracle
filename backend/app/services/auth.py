@@ -40,16 +40,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 async def verify_google_token(token: str) -> Optional[Dict[str, Any]]:
     """
     Verifies a Google OAuth ID token.
-    If the token starts with 'mock_', it returns mock user details for developer convenience.
-    Otherwise, it contacts Google's tokeninfo endpoint to validate the token.
+    Contacts Google's tokeninfo endpoint to validate the token.
     """
-    if token.startswith("mock_"):
-        logger.info("Using mock Google OAuth verification for testing.")
-        email = token.replace("mock_", "") + "@gmail.com"
-        name = token.replace("mock_", "").title()
-        google_id = "google_" + token
-        return {"email": email, "name": name, "google_id": google_id}
-
     # Connect to Google token info API
     url = f"https://oauth2.googleapis.com/tokeninfo?id_token={token}"
     async with httpx.AsyncClient(timeout=5.0) as client:
