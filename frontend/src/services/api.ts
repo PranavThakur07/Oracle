@@ -1,17 +1,19 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const getApiBaseUrl = () => {
+  return localStorage.getItem('oracle_api_url') || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+};
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add JWT token to headers
+// Request interceptor to add JWT token to headers and set dynamic baseURL
 api.interceptors.request.use(
   (config) => {
+    config.baseURL = getApiBaseUrl();
     const token = localStorage.getItem('oracle_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -178,7 +180,8 @@ export const decisionService = {
 
   getExportPdfUrl(id: number) {
     const token = localStorage.getItem('oracle_token');
-    return `http://localhost:8000/api/history/${id}/export?token=${token}`;
+    const baseUrl = getApiBaseUrl();
+    return `${baseUrl}/history/${id}/export?token=${token}`;
   },
 
   async downloadPdfDirect(id: number, filename = 'oracle_report.pdf') {
