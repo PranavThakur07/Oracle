@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { decisionService } from '../services/api';
+import type { Decision } from '../services/api';
 import { 
-  GitFork, 
-  ChevronDown, 
-  ChevronUp, 
   Terminal, 
   Check, 
   Sparkles, 
@@ -15,7 +13,12 @@ import {
   Globe,
   Gauge,
   Calendar,
-  Briefcase
+  Briefcase,
+  Mic,
+  MicOff,
+  History,
+  Info,
+  ChevronRight
 } from 'lucide-react';
 
 interface LoadingStep {
@@ -24,12 +27,21 @@ interface LoadingStep {
   duration: number;
 }
 
-const LOADING_STEPS: LoadingStep[] = [
-  { id: 1, label: "Extracting goals and core parameters...", duration: 1500 },
-  { id: 2, label: "Identifying constraints and starting assumptions...", duration: 1500 },
-  { id: 3, label: "Simulating potential scenario futures (A, B, C)...", duration: 1500 },
-  { id: 4, label: "Calculating opportunity costs and risk tradeoffs...", duration: 1500 },
-  { id: 5, label: "Synthesizing visual comparisons and metrics...", duration: 1500 }
+const REASONING_STEPS: LoadingStep[] = [
+  { id: 1, label: "Understanding your goal", duration: 1300 },
+  { id: 2, label: "Identifying constraints", duration: 1300 },
+  { id: 3, label: "Exploring possible paths", duration: 1400 },
+  { id: 4, label: "Simulating future outcomes", duration: 1400 },
+  { id: 5, label: "Comparing tradeoffs", duration: 1300 },
+  { id: 6, label: "Evaluating opportunity costs", duration: 1300 },
+  { id: 7, label: "Generating insights", duration: 1300 }
+];
+
+const SUGGESTED_PROMPTS = [
+  { text: "Should I pursue an MBA after MCA?", icon: "🎓" },
+  { text: "Should I relocate to Bangalore?", icon: "📍" },
+  { text: "Should I start my own startup?", icon: "🚀" },
+  { text: "Should I buy a house or continue renting?", icon: "🏠" }
 ];
 
 export const Dashboard: React.FC = () => {
@@ -48,10 +60,27 @@ export const Dashboard: React.FC = () => {
   const [riskAppetite, setRiskAppetite] = useState('Medium');
   const [timeHorizon, setTimeHorizon] = useState('5 Years');
   
+  // Voice state
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   // Loading & Flow State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [error, setError] = useState('');
+  const [recentDecisions, setRecentDecisions] = useState<Decision[]>([]);
+  // Fetch recent decisions for quick access
+  useEffect(() => {
+    const fetchRecent = async () => {
+      try {
+        const data = await decisionService.getHistory();
+        setRecentDecisions(data.slice(0, 3)); // Show top 3
+      } catch (err) {
+        console.error("Failed to load recent history in composer:", err);
+      }
+    };
+    fetchRecent();
+  }, []);
 
   // Handle Demo Mode query trigger (?demo=true)
   useEffect(() => {
@@ -67,7 +96,6 @@ export const Dashboard: React.FC = () => {
       setTimeHorizon("5 Years");
       setShowAdvanced(true);
       
-      // Auto-submit after small delay to show values
       const timer = setTimeout(() => {
         triggerSimulation({
           query_val: "Should I pursue an MBA after MCA?",
@@ -79,10 +107,52 @@ export const Dashboard: React.FC = () => {
           risk_val: "Medium",
           time_val: "5 Years"
         });
-      }, 800);
+      }, 1200);
       return () => clearTimeout(timer);
     }
   }, [searchParams]);
+
+  // Voice Input Speech-to-Text Handler
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser. Please type your query.");
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const resultText = event.results[0][0].transcript;
+      setQuery(prev => prev ? `${prev} ${resultText}` : resultText);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
 
   const triggerSimulation = async (demoVals?: {
     query_val: string;
@@ -110,23 +180,23 @@ export const Dashboard: React.FC = () => {
     };
 
     if (!q.trim()) {
-      setError("Please enter a decision question.");
+      setError("Please enter a decision query.");
       setIsSubmitting(false);
       return;
     }
 
-    // Step-by-step loading animation timers
+    // Sequential steps progress animation
     const stepIntervals: number[] = [];
     let completedSteps = 0;
 
     const startStepAnimation = (index: number) => {
-      if (index >= LOADING_STEPS.length) return;
+      if (index >= REASONING_STEPS.length) return;
       
       const timer = window.setTimeout(() => {
         completedSteps++;
         setCurrentStepIndex(completedSteps);
         startStepAnimation(completedSteps);
-      }, LOADING_STEPS[index].duration);
+      }, REASONING_STEPS[index].duration);
       
       stepIntervals.push(timer);
     };
@@ -134,15 +204,10 @@ export const Dashboard: React.FC = () => {
     startStepAnimation(0);
 
     try {
-      // Call API
       const result = await decisionService.analyze(q, context);
+      const totalAnimDuration = REASONING_STEPS.reduce((sum, s) => sum + s.duration, 0);
       
-      // Calculate total minimum animation duration
-      const totalAnimDuration = LOADING_STEPS.reduce((sum, s) => sum + s.duration, 0);
-      
-      // Wait for animations to finish to provide an intelligent loading feel
       setTimeout(() => {
-        // Clear any leftover timers
         stepIntervals.forEach(clearTimeout);
         navigate(`/history/${result.id}`);
       }, totalAnimDuration + 500);
@@ -150,7 +215,7 @@ export const Dashboard: React.FC = () => {
     } catch (err: any) {
       stepIntervals.forEach(clearTimeout);
       setIsSubmitting(false);
-      setError(err.response?.data?.detail || "An unexpected error occurred during simulation. Please try again.");
+      setError(err.response?.data?.detail || "An error occurred during simulation. Please check your API key or try again.");
     }
   };
 
@@ -159,290 +224,406 @@ export const Dashboard: React.FC = () => {
     triggerSimulation();
   };
 
-  return (
-    <div className="space-y-8 font-sans pb-16">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-display font-bold text-white tracking-tight">Decision Workspace</h1>
-        <p className="text-sm text-zinc-400">Define your critical crossroads and model potential futures.</p>
-      </div>
+  // Helper check: does the prompt lack parameter details?
+  const lacksContextInfo = query.length > 10 && !age && !budget && !country && !goals;
 
+  return (
+    <div className="space-y-12 font-sans pb-16 min-h-[calc(100vh-140px)] flex flex-col justify-center relative">
       <AnimatePresence mode="wait">
         {!isSubmitting ? (
           <motion.div
-            key="input-form"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="w-full max-w-3xl mx-auto"
+            key="composer-view"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="w-full max-w-3xl mx-auto space-y-8 relative"
           >
+            {/* Header branding / intro */}
+            <div className="text-center space-y-2">
+              <h2 className="text-3xl font-display font-bold text-white tracking-tight text-glow-primary">
+                Explore Your Futures
+              </h2>
+              <p className="text-xs text-zinc-550 max-w-md mx-auto">
+                Model decisions, simulate timelines, and visualize tradeoffs in our sandbox environment.
+              </p>
+            </div>
+
+            {/* Central Decision Composer (Apple spotlight style) */}
             <form onSubmit={handleFormSubmit} className="space-y-6">
-              {/* Primary Prompt Card */}
-              <div className="p-6 rounded-2xl glass-panel border border-zinc-800/80 space-y-4 shadow-[0_15px_30px_rgba(0,0,0,0.3)]">
-                <div className="flex items-center gap-2 text-primary">
-                  <Sparkles size={18} />
-                  <span className="text-xs font-mono font-semibold tracking-wider uppercase">Oracle Intelligence Input</span>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-200">What major decision are you facing?</label>
-                  <textarea
-                    required
-                    rows={3}
-                    placeholder="Should I pursue an MBA after MCA? Or should I relocate to Europe for a job?"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    className="w-full bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 focus:border-primary/60 transition-colors rounded-xl p-4 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none resize-none leading-relaxed"
-                  />
-                  <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
-                    <span>* Try to ask complex, branched queries</span>
-                    <span>Example: "Startup vs Big Tech Job"</span>
+              <div className="rounded-2xl border border-zinc-800/80 bg-zinc-950/60 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] overflow-hidden transition-all duration-300 focus-within:border-zinc-700/60 focus-within:shadow-[0_20px_50px_rgba(37,99,235,0.08)]">
+                {/* Composer Text Input Area */}
+                <div className="p-5 flex items-start gap-4">
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center text-primary shrink-0 mt-0.5">
+                    <Sparkles size={16} className="animate-pulse-slow" />
                   </div>
+                  
+                  <div className="flex-1 space-y-1">
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="What critical crossroad are you facing?"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      className="w-full bg-transparent border-0 text-zinc-150 placeholder-zinc-600 focus:outline-none focus:ring-0 text-sm sm:text-base leading-relaxed resize-none p-0"
+                    />
+                  </div>
+
+                  {/* Mic Voice toggle */}
+                  <button
+                    type="button"
+                    onClick={handleVoiceInput}
+                    className={`p-2.5 rounded-xl border transition-all duration-300 cursor-pointer ${
+                      isListening 
+                        ? 'bg-danger/10 border-danger/40 text-danger animate-pulse' 
+                        : 'bg-zinc-900 border-zinc-850 text-zinc-500 hover:text-zinc-200 hover:border-zinc-700'
+                    }`}
+                    title="Voice Input"
+                  >
+                    {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                  </button>
                 </div>
 
-                {error && (
-                  <div className="p-3 text-xs text-danger bg-danger/10 border border-danger/25 rounded-lg">
-                    {error}
-                  </div>
-                )}
+                {/* Inline interactive context assistant prompt */}
+                <AnimatePresence>
+                  {lacksContextInfo && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="px-5 pb-5 border-t border-zinc-900/60 pt-4"
+                    >
+                      <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/15 space-y-3">
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-primary font-bold uppercase tracking-wider">
+                          <Info size={11} />
+                          <span>Guiding Context Needed</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-405 leading-relaxed">
+                          Oracle works best when provided with constraints. Add quick parameters below or click simulate to proceed.
+                        </p>
+                        
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-sans">
+                          <input
+                            type="text"
+                            placeholder="Age (e.g. 24)"
+                            value={age}
+                            onChange={(e) => setAge(e.target.value)}
+                            className="bg-zinc-900/80 border border-zinc-850 rounded-lg p-2 text-[11px] text-zinc-300 focus:outline-none focus:border-zinc-700"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Budget (e.g. $10k)"
+                            value={budget}
+                            onChange={(e) => setBudget(e.target.value)}
+                            className="bg-zinc-900/80 border border-zinc-850 rounded-lg p-2 text-[11px] text-zinc-300 focus:outline-none focus:border-zinc-700"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Country (e.g. US)"
+                            value={country}
+                            onChange={(e) => setCountry(e.target.value)}
+                            className="bg-zinc-900/80 border border-zinc-850 rounded-lg p-2 text-[11px] text-zinc-300 focus:outline-none focus:border-zinc-700"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAdvanced(true)}
+                            className="text-[10px] font-semibold text-primary hover:underline text-left pl-2 flex items-center gap-0.5"
+                          >
+                            <span>More Params</span>
+                            <ChevronRight size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-                {/* Collapsible Advanced Parameters */}
-                <div className="border-t border-zinc-900 pt-4">
+                {/* Composer Footer Actions */}
+                <div className="px-5 py-3 border-t border-zinc-900/80 bg-zinc-950/40 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+                  <span>* Press enter to initiate simulation</span>
                   <button
                     type="button"
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="flex items-center justify-between w-full text-zinc-400 hover:text-zinc-200 text-xs font-semibold py-1 focus:outline-none transition-colors"
+                    className="hover:text-zinc-300 flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    <span className="flex items-center gap-1.5">
-                      <GitFork size={13} />
-                      <span>{showAdvanced ? 'Hide Advanced Context' : 'Add Decision Context (Recommended)'}</span>
-                    </span>
-                    {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    <span>Advanced context options</span>
+                    <span>{showAdvanced ? '[-]' : '[+]'}</span>
                   </button>
-
-                  <AnimatePresence>
-                    {showAdvanced && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 pb-2">
-                          {/* Age */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-1">
-                              <User size={12} className="text-zinc-500" />
-                              <span>Age</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. 24"
-                              value={age}
-                              onChange={(e) => setAge(e.target.value)}
-                              className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
-                            />
-                          </div>
-
-                          {/* Salary */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-1">
-                              <DollarSign size={12} className="text-zinc-500" />
-                              <span>Current Income / Salary</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. $45,000 / Student"
-                              value={salary}
-                              onChange={(e) => setSalary(e.target.value)}
-                              className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
-                            />
-                          </div>
-
-                          {/* Budget */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-1">
-                              <DollarSign size={12} className="text-zinc-500" />
-                              <span>Investment Budget</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. $15,000"
-                              value={budget}
-                              onChange={(e) => setBudget(e.target.value)}
-                              className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
-                            />
-                          </div>
-
-                          {/* Country */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-1">
-                              <Globe size={12} className="text-zinc-500" />
-                              <span>Location (Country)</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. India"
-                              value={country}
-                              onChange={(e) => setCountry(e.target.value)}
-                              className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
-                            />
-                          </div>
-
-                          {/* Risk Appetite */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-1">
-                              <Gauge size={12} className="text-zinc-500" />
-                              <span>Risk Appetite</span>
-                            </label>
-                            <select
-                              value={riskAppetite}
-                              onChange={(e) => setRiskAppetite(e.target.value)}
-                              className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700"
-                            >
-                              <option>Low</option>
-                              <option>Medium</option>
-                              <option>High</option>
-                            </select>
-                          </div>
-
-                          {/* Time Horizon */}
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-1">
-                              <Calendar size={12} className="text-zinc-500" />
-                              <span>Time Horizon</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. 5 Years"
-                              value={timeHorizon}
-                              onChange={(e) => setTimeHorizon(e.target.value)}
-                              className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
-                            />
-                          </div>
-
-                          {/* Career Goals */}
-                          <div className="space-y-1 md:col-span-2">
-                            <label className="text-[11px] font-semibold text-zinc-400 flex items-center gap-1">
-                              <Briefcase size={12} className="text-zinc-500" />
-                              <span>Career/Life Goals</span>
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. Build an AI startup / Secure remote software architect role"
-                              value={goals}
-                              onChange={(e) => setGoals(e.target.value)}
-                              className="w-full bg-zinc-900/60 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
-                            />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => navigate('/history')}
-                  className="px-6 py-2.5 rounded-xl border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all"
-                >
-                  View Saved Simulations
-                </button>
+              {error && (
+                <div className="p-3 text-xs text-danger bg-danger/10 border border-danger/20 rounded-xl max-w-lg mx-auto text-center font-mono">
+                  {error}
+                </div>
+              )}
+
+              {/* Collapsible Advanced parameter panel */}
+              <AnimatePresence>
+                {showAdvanced && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 5 }}
+                    className="p-6 rounded-2xl border border-zinc-850 bg-zinc-950/20 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-xl mx-auto shadow-lg"
+                  >
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                        <User size={11} />
+                        <span>Age</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 24"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                        <DollarSign size={11} />
+                        <span>Current Income</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. $50,000 / Student"
+                        value={salary}
+                        onChange={(e) => setSalary(e.target.value)}
+                        className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                        <DollarSign size={11} />
+                        <span>Budget Limit</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. $15,000"
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                        className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                        <Globe size={11} />
+                        <span>Location Country</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. India"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                        <Gauge size={11} />
+                        <span>Risk Appetite</span>
+                      </label>
+                      <select
+                        value={riskAppetite}
+                        onChange={(e) => setRiskAppetite(e.target.value)}
+                        className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700 font-sans"
+                      >
+                        <option>Low</option>
+                        <option>Medium</option>
+                        <option>High</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                        <Calendar size={11} />
+                        <span>Time Horizon</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 5 Years"
+                        value={timeHorizon}
+                        onChange={(e) => setTimeHorizon(e.target.value)}
+                        className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
+                      />
+                    </div>
+
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
+                        <Briefcase size={11} />
+                        <span>Long Term Career Goals</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Secure a leadership role in a tech startup..."
+                        value={goals}
+                        onChange={(e) => setGoals(e.target.value)}
+                        className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2.5 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Action Suggestion Pills */}
+              <div className="space-y-2 max-w-xl mx-auto">
+                <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-wider block text-center font-mono">
+                  Suggested Scenarios
+                </span>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {SUGGESTED_PROMPTS.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setQuery(item.text)}
+                      className="px-3.5 py-2 rounded-xl bg-zinc-900/60 border border-zinc-850 hover:bg-zinc-800/80 hover:border-zinc-700 text-xs text-zinc-300 hover:text-white transition-all duration-300 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Workspace Action Buttons */}
+              <div className="flex items-center justify-center gap-3 pt-4">
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary hover:bg-blue-600 text-xs font-semibold text-white shadow-[0_4px_15px_rgba(37,99,235,0.25)] transition-all transform hover:-translate-y-0.5"
+                  className="flex items-center gap-2 px-8 py-3.5 rounded-xl bg-primary hover:bg-blue-600 text-xs font-semibold text-white shadow-[0_4px_20px_rgba(37,99,235,0.25)] hover:shadow-[0_4px_25px_rgba(37,99,235,0.4)] transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                 >
-                  <span>Simulate Futures</span>
-                  <ArrowRight size={14} />
+                  <span>Simulate Alternative Futures</span>
+                  <ArrowRight size={13} />
                 </button>
               </div>
             </form>
+
+            {/* Recent simulations dashboard link block */}
+            {recentDecisions.length > 0 && (
+              <div className="pt-8 border-t border-zinc-900/60 max-w-xl mx-auto space-y-3">
+                <div className="flex items-center gap-2 text-[10px] font-semibold text-zinc-600 uppercase tracking-wider font-mono">
+                  <History size={12} />
+                  <span>Recent Simulations</span>
+                </div>
+                <div className="space-y-2">
+                  {recentDecisions.map((dec) => (
+                    <div
+                      key={dec.id}
+                      onClick={() => navigate(`/history/${dec.id}`)}
+                      className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-900 bg-zinc-950/20 hover:border-zinc-800 hover:bg-zinc-900/30 transition-all duration-300 cursor-pointer text-xs"
+                    >
+                      <span className="text-zinc-300 truncate max-w-md font-medium">{dec.query}</span>
+                      <span className="text-[10px] font-mono text-zinc-550 flex items-center gap-0.5 font-semibold">
+                        <span>View</span>
+                        <ChevronRight size={11} />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
         ) : (
-          /* Intelligent Step-by-Step Loading Terminal Screen */
+          /* High-end Reasoning Sequence Loader Interface */
           <motion.div
-            key="loading-screen"
-            initial={{ opacity: 0, scale: 0.98 }}
+            key="loading-reasoner"
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="w-full max-w-xl mx-auto p-6 rounded-2xl border border-zinc-800/80 bg-zinc-950/90 shadow-[0_25px_60px_rgba(0,0,0,0.55)] space-y-6 font-mono"
+            className="w-full max-w-xl mx-auto p-8 rounded-2xl border border-zinc-850 bg-zinc-950/80 shadow-[0_25px_60px_rgba(0,0,0,0.55)] space-y-8 font-mono"
           >
-            <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-              <div className="flex items-center gap-2 text-zinc-500">
-                <Terminal size={14} />
-                <span className="text-xs font-semibold uppercase tracking-wider">Oracle Logic Engine</span>
+            {/* Window title bar */}
+            <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
+              <div className="flex items-center gap-2 text-zinc-550">
+                <Terminal size={14} className="text-primary animate-pulse" />
+                <span className="text-xs font-semibold uppercase tracking-wider">Oracle Reasoning Engine</span>
               </div>
-              <div className="flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-danger/55"></div>
-                <div className="w-2 h-2 rounded-full bg-warning/55"></div>
-                <div className="w-2 h-2 rounded-full bg-success/55"></div>
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-danger/40"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-warning/40"></div>
+                <div className="w-2.5 h-2.5 rounded-full bg-success/40"></div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="text-zinc-400 text-xs flex flex-col gap-1">
-                <span className="text-zinc-500 text-[10px]">&gt; Initializing analytical model context...</span>
-                <span className="text-zinc-300">&gt; Query: "{query}"</span>
+            {/* Custom interactive processing graph */}
+            <div className="h-28 w-full border border-zinc-900 rounded-xl bg-zinc-950/50 flex items-center justify-center relative overflow-hidden">
+              {/* Pulsing center node */}
+              <div className="h-6 w-6 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center relative z-10">
+                <Sparkles size={11} className="text-white animate-spin-slow" />
+                <div className="absolute inset-0 h-full w-full rounded-full bg-primary animate-ping opacity-25"></div>
               </div>
+              
+              {/* Radial branching wires */}
+              <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                {/* Branch A line */}
+                <path d="M 288 56 L 150 35 L 70 35" stroke="#2563EB" strokeWidth="1.5" strokeOpacity={currentStepIndex >= 2 ? "0.8" : "0.15"} strokeDasharray={currentStepIndex === 2 ? "3 3" : ""} className="transition-all duration-500" />
+                <circle cx="70" cy="35" r="4.5" fill="#2563EB" fillOpacity={currentStepIndex >= 2 ? "1" : "0.1"} className="transition-all duration-550" />
 
-              {/* Progress Steps List */}
-              <div className="space-y-2.5 pt-2">
-                {LOADING_STEPS.map((step, idx) => {
-                  const isDone = currentStepIndex > idx;
-                  const isActive = currentStepIndex === idx;
+                {/* Branch B line */}
+                <path d="M 288 56 L 400 56 L 500 56" stroke="#10B981" strokeWidth="1.5" strokeOpacity={currentStepIndex >= 3 ? "0.8" : "0.15"} strokeDasharray={currentStepIndex === 3 ? "3 3" : ""} className="transition-all duration-500" />
+                <circle cx="500" cy="56" r="4.5" fill="#10B981" fillOpacity={currentStepIndex >= 3 ? "1" : "0.1"} className="transition-all duration-550" />
 
-                  return (
-                    <div 
-                      key={step.id} 
-                      className={`flex items-center justify-between text-xs transition-colors duration-300 ${
-                        isDone ? 'text-success' : isActive ? 'text-primary font-semibold' : 'text-zinc-600'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {isDone ? (
-                          <div className="h-4.5 w-4.5 rounded-full bg-success/15 border border-success/35 flex items-center justify-center text-success text-[10px] shrink-0">
-                            <Check size={10} />
-                          </div>
-                        ) : isActive ? (
-                          <div className="h-4.5 w-4.5 rounded-full bg-primary/10 border border-primary/40 flex items-center justify-center shrink-0">
-                            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ping"></span>
-                          </div>
-                        ) : (
-                          <div className="h-4.5 w-4.5 rounded-full border border-zinc-800 flex items-center justify-center shrink-0">
-                            <span className="text-[9px] text-zinc-700">{step.id}</span>
-                          </div>
-                        )}
-                        <span>{step.label}</span>
-                      </div>
-                      
-                      {isActive && (
-                        <span className="text-[10px] font-semibold text-primary animate-pulse">
-                          RUNNING
-                        </span>
+                {/* Branch C line */}
+                <path d="M 288 56 L 200 80 L 120 80" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity={currentStepIndex >= 4 ? "0.8" : "0.15"} strokeDasharray={currentStepIndex === 4 ? "3 3" : ""} className="transition-all duration-500" />
+                <circle cx="120" cy="80" r="4.5" fill="#8B5CF6" fillOpacity={currentStepIndex >= 4 ? "1" : "0.1"} className="transition-all duration-550" />
+              </svg>
+            </div>
+
+            {/* Reasoning Sequential List */}
+            <div className="space-y-3.5 pt-2">
+              {REASONING_STEPS.map((step, idx) => {
+                const isDone = currentStepIndex > idx;
+                const isActive = currentStepIndex === idx;
+
+                return (
+                  <div 
+                    key={step.id} 
+                    className={`flex items-center justify-between text-xs transition-colors duration-300 ${
+                      isDone ? 'text-success' : isActive ? 'text-primary font-semibold' : 'text-zinc-650'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {isDone ? (
+                        <div className="h-5 w-5 rounded-full bg-success/15 border border-success/35 flex items-center justify-center text-success text-[10px] shrink-0 shadow-sm text-glow-success">
+                          <Check size={11} />
+                        </div>
+                      ) : isActive ? (
+                        <div className="h-5 w-5 rounded-full bg-primary/10 border border-primary/40 flex items-center justify-center shrink-0 shadow-sm">
+                          <span className="h-2 w-2 rounded-full bg-primary animate-ping"></span>
+                        </div>
+                      ) : (
+                        <div className="h-5 w-5 rounded-full border border-zinc-900 flex items-center justify-center shrink-0 text-zinc-700">
+                          <span className="text-[10px]">{step.id}</span>
+                        </div>
                       )}
-                      {isDone && (
-                        <span className="text-[10px] font-semibold text-success">
-                          COMPLETE
-                        </span>
-                      )}
+                      <span>{step.label}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    
+                    {isActive && (
+                      <span className="text-[10px] font-semibold text-primary animate-pulse tracking-widest font-mono">
+                        PROCESSING
+                      </span>
+                    )}
+                    {isDone && (
+                      <span className="text-[10px] font-semibold text-success font-mono">
+                        DONE
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Simulated terminal feedback log */}
-            <div className="p-3 bg-zinc-900/40 border border-zinc-900 rounded-lg text-[10px] text-zinc-500 leading-relaxed font-mono flex flex-col gap-1">
-              <span>PROJECTION CONFIG: GEMINI-2.5-FLASH</span>
-              <span>SCHEMA TARGET: MULTI-SCENARIO SCALES [2..4]</span>
-              <span>TEMPERATURE: 0.3 | DISCLAIMERS: TRUE</span>
-              {currentStepIndex >= 3 && (
-                <span className="text-accent animate-pulse-slow">
-                  &gt;&gt; LOG: Model simulating scenario branches. Compiling timelines...
-                </span>
-              )}
+            {/* Real-time details console output */}
+            <div className="p-4 bg-zinc-900/40 border border-zinc-900 rounded-xl text-[10px] text-zinc-550 leading-relaxed font-mono flex flex-col gap-1.5 shadow-inner">
+              <span className="text-zinc-500 font-bold uppercase">MODEL OUTPUT STREAM</span>
+              <span>ENGINE: GEMINI-2.5-FLASH-COGNITIVE-DEEP</span>
+              {currentStepIndex >= 1 && <span>&gt; Mapping constraints: [Budget: {budget || 'null'}, Salary: {salary || 'null'}, Risk: {riskAppetite}]</span>}
+              {currentStepIndex >= 3 && <span className="text-accent">&gt; Timelines matched. Simulating milestone coordinates...</span>}
+              {currentStepIndex >= 5 && <span className="text-success">&gt; Calculating compound interest and opportunity costs for branches...</span>}
             </div>
           </motion.div>
         )}

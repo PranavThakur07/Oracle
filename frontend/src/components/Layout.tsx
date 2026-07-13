@@ -32,6 +32,67 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [apiUrlInput, setApiUrlInput] = useState('');
 
+  // Command Palette States
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandSearch, setCommandSearch] = useState('');
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+
+  // Global keydown listeners for shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(prev => !prev);
+      }
+      if (e.key === 'Escape') {
+        setCommandPaletteOpen(false);
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const defaultCommands = [
+    { label: 'Create New Simulation', action: () => navigate('/dashboard'), category: 'Navigation' },
+    { label: 'View Simulation History Log', action: () => navigate('/history'), category: 'Navigation' },
+    { label: 'Open System Settings', action: () => setSettingsOpen(true), category: 'Configuration' },
+  ];
+
+  const filteredCommands = [
+    ...defaultCommands.filter(c => c.label.toLowerCase().includes(commandSearch.toLowerCase())),
+    ...history
+      .filter(item => item.query.toLowerCase().includes(commandSearch.toLowerCase()))
+      .map(item => ({
+        label: `Open: "${item.query}"`,
+        action: () => navigate(`/history/${item.id}`),
+        category: 'Simulations'
+      }))
+  ];
+
+  useEffect(() => {
+    if (!commandPaletteOpen) return;
+    
+    const handleNavigation = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedCommandIndex(prev => (prev + 1) % filteredCommands.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedCommandIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredCommands[selectedCommandIndex]) {
+          filteredCommands[selectedCommandIndex].action();
+          setCommandPaletteOpen(false);
+          setCommandSearch('');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleNavigation);
+    return () => window.removeEventListener('keydown', handleNavigation);
+  }, [commandPaletteOpen, selectedCommandIndex, filteredCommands]);
+
   // Set initial input value when settings open
   useEffect(() => {
     if (settingsOpen) {
@@ -283,6 +344,72 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 Save & Apply
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Command Palette Modal */}
+      {commandPaletteOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 backdrop-blur-sm p-4 pt-[15vh] animate-fade-in">
+          <div className="w-full max-w-lg bg-zinc-950 border border-zinc-900 rounded-xl overflow-hidden shadow-2xl animate-slide-up flex flex-col max-h-[50vh]">
+            <div className="p-4 border-b border-zinc-900 flex items-center gap-3">
+              <Search className="text-zinc-500" size={18} />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search commands or past simulations... (e.g. 'settings', 'MBA')"
+                value={commandSearch}
+                onChange={(e) => {
+                  setCommandSearch(e.target.value);
+                  setSelectedCommandIndex(0);
+                }}
+                className="w-full bg-transparent text-sm text-zinc-150 placeholder-zinc-600 focus:outline-none"
+              />
+              <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[9px] font-mono text-zinc-555 font-semibold uppercase">
+                ESC
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {filteredCommands.length === 0 ? (
+                <div className="text-center py-8 text-xs text-zinc-650 font-mono">
+                  No matching commands found.
+                </div>
+              ) : (
+                filteredCommands.map((cmd, idx) => {
+                  const isSelected = selectedCommandIndex === idx;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        cmd.action();
+                        setCommandPaletteOpen(false);
+                        setCommandSearch('');
+                      }}
+                      onMouseEnter={() => setSelectedCommandIndex(idx)}
+                      className={`px-3 py-2.5 rounded-lg cursor-pointer flex items-center justify-between transition-colors ${
+                        isSelected 
+                          ? 'bg-primary/10 text-white font-medium' 
+                          : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <span className="text-xs truncate">{cmd.label}</span>
+                      <span className="px-1.5 py-0.5 rounded bg-zinc-900/50 border border-zinc-850 text-[9px] font-mono text-zinc-550">
+                        {cmd.category}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="px-4 py-2 border-t border-zinc-900 bg-zinc-950/40 flex items-center justify-between text-[9px] font-mono text-zinc-600">
+              <div className="flex items-center gap-3">
+                <span>↑↓ Navigate</span>
+                <span>↵ Select</span>
+              </div>
+              <span>COMMAND PALETTE</span>
             </div>
           </div>
         </div>

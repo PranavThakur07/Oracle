@@ -109,3 +109,55 @@ html, body {
   filter: blur(40px);
   pointer-events: none;
 }
+
+/* Redesign Enhancements */
+.neon-border {
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 20px -5px rgba(37, 99, 235, 0.15);
+}
+
+.neon-border:focus-within {
+  border-color: rgba(37, 99, 235, 0.4);
+  box-shadow: 0 0 30px -5px rgba(37, 99, 235, 0.3);
+}
+
+.glass-modal {
+  background: rgba(9, 9, 11, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(63, 63, 70, 0.4);
+}
+
+.text-glow-primary {
+  text-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+}
+
+.text-glow-success {
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.text-glow-warning {
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.text-glow-danger {
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Custom styled scrubber slider track */
+input[type="range"]::-webkit-slider-thumb {
+  background: #2563EB;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.6);
+  cursor: pointer;
+}
+

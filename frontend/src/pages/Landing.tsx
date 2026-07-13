@@ -1,120 +1,210 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowRight, Play, Shield, Zap, TrendingUp, GitFork } from 'lucide-react';
+import { ArrowRight, Play, GitFork, Sparkles, TrendingUp, ShieldAlert, HeartHandshake } from 'lucide-react';
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [isExiting, setIsExiting] = useState(false);
+  const [hoveredBranch, setHoveredBranch] = useState<'A' | 'B' | 'C' | null>(null);
 
   const handleStart = () => {
-    if (user) {
-      navigate('/dashboard');
-    } else {
-      navigate('/login');
-    }
+    setIsExiting(true);
+    setTimeout(() => {
+      if (user) {
+        navigate('/dashboard');
+      } else {
+        navigate('/login');
+      }
+    }, 800); // Wait for transition animation
   };
 
   const handleDemo = () => {
-    // Navigate to dashboard with demo state pre-filled
-    navigate('/dashboard?demo=true');
+    setIsExiting(true);
+    setTimeout(() => {
+      navigate('/dashboard?demo=true');
+    }, 800);
   };
 
   return (
-    <div className="min-h-screen bg-background grid-bg text-zinc-100 flex flex-col font-sans overflow-hidden">
+    <div className="min-h-screen bg-background grid-bg text-zinc-100 flex flex-col font-sans overflow-hidden relative">
+      {/* Immersive Dark overlay transition */}
+      <AnimatePresence>
+        {isExiting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-background z-50 flex items-center justify-center pointer-events-none"
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 0.15 }}
+              className="h-96 w-96 rounded-full bg-primary blur-[120px]"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
-      <header className="px-8 py-6 flex items-center justify-between border-b border-zinc-900/50 backdrop-blur-md bg-zinc-950/20 sticky top-0 z-50">
-        <div className="flex items-center gap-2 select-none">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-display font-bold text-lg shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+      <header className="px-8 py-6 flex items-center justify-between border-b border-zinc-900/40 backdrop-blur-md bg-zinc-950/10 sticky top-0 z-40">
+        <div className="flex items-center gap-2.5 select-none cursor-pointer" onClick={() => navigate('/')}>
+          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center text-white font-display font-bold text-base shadow-[0_0_15px_rgba(37,99,235,0.4)]">
             Ω
           </div>
-          <span className="font-display font-bold text-xl tracking-wider text-white">ORACLE</span>
+          <span className="font-display font-bold text-lg tracking-wider text-white">ORACLE</span>
         </div>
         <div>
           <button 
             onClick={handleStart}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white transition-all"
+            className="px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800/80 text-zinc-300 hover:text-white transition-all duration-300 cursor-pointer"
           >
-            {user ? 'Dashboard' : 'Sign In'}
+            {user ? 'Go to Workspace' : 'Sign In'}
           </button>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-20 relative max-w-6xl mx-auto w-full">
-        {/* Glows */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] height-[500px] bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
+      {/* Hero Content Section */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative max-w-5xl mx-auto w-full z-10">
+        {/* Glow behind title */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="text-center space-y-6 max-w-4xl relative z-10">
+        <div className="text-center space-y-6 max-w-3xl relative">
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-sm text-xs text-zinc-400 font-mono"
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-zinc-800/80 bg-zinc-900/30 backdrop-blur-sm text-[10px] text-zinc-400 font-mono"
           >
-            <GitFork size={13} className="text-primary" />
-            <span>AI-POWERED DECISION INTELLIGENCE</span>
+            <GitFork size={12} className="text-primary animate-pulse" />
+            <span>AI OPERATING SYSTEM FOR DECISION INTELLIGENCE</span>
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-            className="font-display text-5xl md:text-7xl font-bold tracking-tight text-white leading-tight"
+            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="font-display text-4xl sm:text-6xl font-bold tracking-tight text-white leading-tight"
           >
-            Every Decision Has <br className="hidden md:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-emerald-400">
+            Every Decision Has <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-accent to-emerald-400 text-glow-primary">
               Multiple Futures.
             </span>
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto font-sans leading-relaxed"
+            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="text-sm sm:text-base text-zinc-450 max-w-xl mx-auto leading-relaxed"
           >
-            Stop asking AI what to do. Start exploring every possibility. Simulate outcomes, compare tradeoffs, and map opportunity costs.
+            Stop guessing. Map critical choices to simulated paths. Analyze growth potential, evaluate trade-offs, and visualize compound opportunity costs before you decide.
           </motion.p>
 
-          {/* Action CTAs */}
+          {/* Action Call-to-Actions */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
+            transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4"
           >
             <button
               onClick={handleStart}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary hover:bg-blue-600 text-white font-medium shadow-[0_4px_20px_rgba(37,99,235,0.35)] transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary hover:bg-blue-600 text-xs font-semibold text-white shadow-[0_4px_25px_rgba(37,99,235,0.4)] hover:shadow-[0_4px_30px_rgba(37,99,235,0.6)] transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
               <span>Try Oracle</span>
-              <ArrowRight size={18} />
+              <ArrowRight size={14} />
             </button>
             <button
               onClick={handleDemo}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-xs font-semibold text-zinc-300 hover:text-white transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
-              <Play size={15} fill="currentColor" />
-              <span>Explore Demo</span>
+              <Play size={12} fill="currentColor" />
+              <span>Explore Interactive Demo</span>
             </button>
           </motion.div>
         </div>
 
-        {/* Animated SVGs: Branching Illustration */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.2, delay: 0.5 }}
-          className="w-full max-w-2xl h-64 mt-16 relative flex items-center justify-center"
-        >
+        {/* Dynamic Branching Decision Tree Visualization */}
+        <div className="w-full max-w-2xl h-80 mt-12 relative flex items-center justify-center">
+          {/* Branch Preview Popup Card */}
+          <AnimatePresence>
+            {hoveredBranch && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                animate={{ opacity: 1, scale: 1, y: -45 }}
+                exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                className="absolute top-0 z-30 w-72 p-4 rounded-xl border border-zinc-800 bg-zinc-950/95 backdrop-blur-md shadow-2xl space-y-3 font-sans"
+              >
+                {hoveredBranch === 'A' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/35 text-[9px] font-mono font-bold text-blue-400">
+                        ACCELERATED GROWTH
+                      </span>
+                      <TrendingUp size={14} className="text-blue-400" />
+                    </div>
+                    <p className="text-xs text-zinc-300 font-medium">Aggressive Career Leap</p>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                      Maximizes high earnings and startup capital, trading short-term work-life balance for long-term equity potential.
+                    </p>
+                    <div className="flex justify-between text-[10px] text-zinc-400 pt-1 font-mono">
+                      <span>Risk: High</span>
+                      <span>Growth Index: 9.2</span>
+                    </div>
+                  </>
+                )}
+
+                {hoveredBranch === 'B' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/35 text-[9px] font-mono font-bold text-emerald-400">
+                        BALANCED PATHWAY
+                      </span>
+                      <HeartHandshake size={14} className="text-emerald-400" />
+                    </div>
+                    <p className="text-xs text-zinc-300 font-medium">Sustainable Development</p>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                      Prioritizes steady learning, moderate risk, and stable income to avoid burnout while building core mastery.
+                    </p>
+                    <div className="flex justify-between text-[10px] text-zinc-400 pt-1 font-mono">
+                      <span>Risk: Low</span>
+                      <span>Work-Life: 8.5</span>
+                    </div>
+                  </>
+                )}
+
+                {hoveredBranch === 'C' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/35 text-[9px] font-mono font-bold text-purple-400">
+                        DEFENSIVE PIVOT
+                      </span>
+                      <ShieldAlert size={14} className="text-purple-400" />
+                    </div>
+                    <p className="text-xs text-zinc-300 font-medium">Alternative Hedge</p>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                      Mitigates downside risk completely. Sacrifices immediate salary gains to hedge against market volatility.
+                    </p>
+                    <div className="flex justify-between text-[10px] text-zinc-400 pt-1 font-mono">
+                      <span>Risk: Minimal</span>
+                      <span>Cost Score: 2.0</span>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <svg className="w-full h-full" viewBox="0 0 600 240" fill="none" xmlns="http://www.w3.org/2000/svg">
             {/* Base Choice Line */}
             <motion.path
-              d="M 50 120 L 220 120"
-              stroke="#3F3F46"
-              strokeWidth="3"
+              d="M 60 120 L 220 120"
+              stroke="#27272A"
+              strokeWidth="2.5"
               strokeDasharray="4 4"
             />
             
@@ -122,116 +212,101 @@ export const Landing: React.FC = () => {
             <motion.circle
               cx="220"
               cy="120"
-              r="7"
+              r="6"
               fill="#2563EB"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ delay: 1 }}
-              className="shadow-[0_0_10px_rgba(37,99,235,0.8)]"
+              transition={{ delay: 0.5 }}
+              className="shadow-[0_0_15px_rgba(37,99,235,0.8)]"
             />
+            <text x="220" y="105" fill="#71717A" fontSize="9" fontFamily="sans-serif" textAnchor="middle" className="font-mono">
+              Decision Point
+            </text>
 
-            {/* Scenario A Path: Continue Working */}
+            {/* Path A (Top Branch) */}
             <motion.path
-              d="M 220 120 C 290 120, 320 40, 420 40 L 520 40"
-              stroke="#EF4444"
-              strokeWidth="3"
+              d="M 220 120 C 295 120, 320 50, 420 50 L 510 50"
+              stroke={hoveredBranch === 'A' ? '#3B82F6' : '#27272A'}
+              strokeWidth={hoveredBranch === 'A' ? '3' : '2'}
+              className="transition-all duration-300"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{ duration: 1.5, delay: 1.2 }}
+              transition={{ duration: 1.2, delay: 0.6 }}
             />
-            
-            {/* Scenario B Path: MBA Studies */}
+            <motion.circle
+              cx="510"
+              cy="50"
+              r="5"
+              fill={hoveredBranch === 'A' ? '#3B82F6' : '#27272A'}
+              onMouseEnter={() => setHoveredBranch('A')}
+              onMouseLeave={() => setHoveredBranch(null)}
+              className="cursor-pointer transition-all duration-300"
+              whileHover={{ scale: 1.8 }}
+            />
+
+            {/* Path B (Middle Branch) */}
             <motion.path
-              d="M 220 120 L 520 120"
-              stroke="#2563EB"
-              strokeWidth="3"
+              d="M 220 120 L 510 120"
+              stroke={hoveredBranch === 'B' ? '#10B981' : '#27272A'}
+              strokeWidth={hoveredBranch === 'B' ? '3' : '2'}
+              className="transition-all duration-300"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{ duration: 1.5, delay: 1.2 }}
+              transition={{ duration: 1.2, delay: 0.6 }}
+            />
+            <motion.circle
+              cx="510"
+              cy="120"
+              r="5"
+              fill={hoveredBranch === 'B' ? '#10B981' : '#27272A'}
+              onMouseEnter={() => setHoveredBranch('B')}
+              onMouseLeave={() => setHoveredBranch(null)}
+              className="cursor-pointer transition-all duration-300"
+              whileHover={{ scale: 1.8 }}
             />
 
-            {/* Scenario C Path: Startup */}
+            {/* Path C (Bottom Branch) */}
             <motion.path
-              d="M 220 120 C 290 120, 320 200, 420 200 L 520 200"
-              stroke="#10B981"
-              strokeWidth="3"
+              d="M 220 120 C 295 120, 320 190, 420 190 L 510 190"
+              stroke={hoveredBranch === 'C' ? '#8B5CF6' : '#27272A'}
+              strokeWidth={hoveredBranch === 'C' ? '3' : '2'}
+              className="transition-all duration-300"
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
-              transition={{ duration: 1.5, delay: 1.2 }}
+              transition={{ duration: 1.2, delay: 0.6 }}
+            />
+            <motion.circle
+              cx="510"
+              cy="190"
+              r="5"
+              fill={hoveredBranch === 'C' ? '#8B5CF6' : '#27272A'}
+              onMouseEnter={() => setHoveredBranch('C')}
+              onMouseLeave={() => setHoveredBranch(null)}
+              className="cursor-pointer transition-all duration-300"
+              whileHover={{ scale: 1.8 }}
             />
 
-            {/* Labels at the end of the paths */}
-            <motion.g
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 2.2 }}
-            >
-              <rect x="440" y="20" width="130" height="30" rx="6" fill="#121214" stroke="#EF4444" strokeWidth="1"/>
-              <text x="505" y="38" fill="#F4F4F5" fontSize="10" fontFamily="sans-serif" textAnchor="middle">Scenario A: Status Quo</text>
-            </motion.g>
-
-            <motion.g
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 2.2 }}
-            >
-              <rect x="440" y="105" width="130" height="30" rx="6" fill="#121214" stroke="#2563EB" strokeWidth="1"/>
-              <text x="505" y="123" fill="#F4F4F5" fontSize="10" fontFamily="sans-serif" textAnchor="middle">Scenario B: MBA Study</text>
-            </motion.g>
-
-            <motion.g
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 2.2 }}
-            >
-              <rect x="440" y="185" width="130" height="30" rx="6" fill="#121214" stroke="#10B981" strokeWidth="1"/>
-              <text x="505" y="203" fill="#F4F4F5" fontSize="10" fontFamily="sans-serif" textAnchor="middle">Scenario C: Build Startup</text>
-            </motion.g>
-
-            {/* Question Text above starting path */}
-            <text x="135" y="100" fill="#71717A" fontSize="11" fontFamily="sans-serif" textAnchor="middle">Initial Decision Query</text>
+            {/* Dynamic Interactive Node labels */}
+            <text x="530" y="54" fill={hoveredBranch === 'A' ? '#3B82F6' : '#52525B'} fontSize="9" className="font-mono font-medium transition-colors duration-300">
+              Future Alpha
+            </text>
+            <text x="530" y="124" fill={hoveredBranch === 'B' ? '#10B981' : '#52525B'} fontSize="9" className="font-mono font-medium transition-colors duration-300">
+              Future Beta
+            </text>
+            <text x="530" y="194" fill={hoveredBranch === 'C' ? '#8B5CF6' : '#52525B'} fontSize="9" className="font-mono font-medium transition-colors duration-300">
+              Future Gamma
+            </text>
           </svg>
-        </motion.div>
+        </div>
       </main>
 
-      {/* Feature Grids */}
-      <section className="bg-zinc-950 border-t border-zinc-900 py-20 px-8 relative z-25">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="p-6 rounded-xl border border-zinc-900 bg-zinc-900/20 space-y-3">
-            <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center text-danger border border-red-500/20">
-              <Shield size={18} />
-            </div>
-            <h3 className="font-display font-semibold text-lg text-white">Compare Tradeoffs</h3>
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              Every scenario evaluates pros, cons, and specific risks side-by-side. Calculate exactly what you gain and what you forfeit.
-            </p>
-          </div>
-          
-          <div className="p-6 rounded-xl border border-zinc-900 bg-zinc-900/20 space-y-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-primary border border-blue-500/20">
-              <Zap size={18} />
-            </div>
-            <h3 className="font-display font-semibold text-lg text-white">Dynamic Follow-ups</h3>
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              Query alternatives inside the active context. Ask "What if my budget is double?" to revise all projections instantly.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-xl border border-zinc-900 bg-zinc-900/20 space-y-3">
-            <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-success border border-emerald-500/20">
-              <TrendingUp size={18} />
-            </div>
-            <h3 className="font-display font-semibold text-lg text-white">Timeline Comparison</h3>
-            <p className="text-sm text-zinc-400 leading-relaxed">
-              Explore step-by-step milestones (2026 → 2027 → 2030) side-by-side. Visualize which path yields growth fastest.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-zinc-900 py-8 px-8 text-center text-xs text-zinc-500 font-mono">
-        © 2026 ORACLE INC. ALL RIGHTS RESERVED. SIMULATIONS DO NOT GUARANTEE FUTURE RESULTS.
+      {/* Ultra Minimal Footer */}
+      <footer className="border-t border-zinc-900/60 py-6 px-8 flex flex-col sm:flex-row items-center justify-between text-[10px] text-zinc-600 font-mono relative z-10 bg-zinc-950/20">
+        <span>© 2026 ORACLE INC. ALL RIGHTS RESERVED.</span>
+        <span className="flex items-center gap-1">
+          <Sparkles size={11} className="text-zinc-500" />
+          <span>DECISION INTELLIGENCE SUITE V1.0</span>
+        </span>
       </footer>
     </div>
   );
