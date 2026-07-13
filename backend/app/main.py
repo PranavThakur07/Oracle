@@ -26,10 +26,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Enable CORS for local React development
+# Enable CORS for local React development and deployed environments (Netlify, Ngrok, etc.)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust for specific origin (e.g. http://localhost:5173) in production
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
