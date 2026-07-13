@@ -29,10 +29,24 @@ app = FastAPI(
 # Enable CORS for local React development and deployed environments (Netlify, Ngrok, etc.)
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=[
+        "https://oracleapexgp.netlify.app",
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
     allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "ngrok-skip-browser-warning",
+    ],
 )
 
 # Mount Routers
