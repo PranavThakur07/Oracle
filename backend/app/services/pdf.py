@@ -191,6 +191,10 @@ def generate_decision_pdf(query: str, context: dict, simulation_data: dict) -> B
         fontSize=8.5, leading=12.5, leftIndent=12, firstLineIndent=-8,
         textColor=colors.HexColor("#334155"), spaceAfter=3
     )
+    disclaimer_style = ParagraphStyle(
+        'DisclaimerText', parent=styles['Normal'], fontName='Helvetica-Oblique',
+        fontSize=8, leading=11, textColor=c_secondary
+    )
     callout_title = ParagraphStyle(
         'CalloutTitle', parent=styles['Normal'], fontName='Helvetica-Bold',
         fontSize=9.5, leading=13, textColor=c_primary
