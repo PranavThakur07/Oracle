@@ -57,8 +57,8 @@ export const Dashboard: React.FC = () => {
   const [budget, setBudget] = useState('');
   const [country, setCountry] = useState('');
   const [goals, setGoals] = useState('');
-  const [riskAppetite, setRiskAppetite] = useState('Medium');
-  const [timeHorizon, setTimeHorizon] = useState('5 Years');
+  const [riskAppetite, setRiskAppetite] = useState('');
+  const [timeHorizon, setTimeHorizon] = useState('');
   
   // Voice state
   const [isListening, setIsListening] = useState(false);
@@ -369,7 +369,7 @@ export const Dashboard: React.FC = () => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                         <User size={11} />
-                        <span>Age</span>
+                        <span>Current Age</span>
                       </label>
                       <input
                         type="text"
@@ -378,12 +378,13 @@ export const Dashboard: React.FC = () => {
                         onChange={(e) => setAge(e.target.value)}
                         className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
                       />
+                      <p className="text-[9px] text-zinc-600">Your current age in years.</p>
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                         <DollarSign size={11} />
-                        <span>Current Income</span>
+                        <span>Current Income / Salary</span>
                       </label>
                       <input
                         type="text"
@@ -392,12 +393,13 @@ export const Dashboard: React.FC = () => {
                         onChange={(e) => setSalary(e.target.value)}
                         className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
                       />
+                      <p className="text-[9px] text-zinc-600">Your current annual salary or income status.</p>
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                         <DollarSign size={11} />
-                        <span>Budget Limit</span>
+                        <span>Available Budget / Capital</span>
                       </label>
                       <input
                         type="text"
@@ -406,12 +408,13 @@ export const Dashboard: React.FC = () => {
                         onChange={(e) => setBudget(e.target.value)}
                         className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
                       />
+                      <p className="text-[9px] text-zinc-600">Maximum financial allocation for this decision.</p>
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                         <Globe size={11} />
-                        <span>Location Country</span>
+                        <span>Geographical Location</span>
                       </label>
                       <input
                         type="text"
@@ -420,42 +423,46 @@ export const Dashboard: React.FC = () => {
                         onChange={(e) => setCountry(e.target.value)}
                         className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
                       />
+                      <p className="text-[9px] text-zinc-600">The country or city of origin/target.</p>
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                         <Gauge size={11} />
-                        <span>Risk Appetite</span>
+                        <span>Risk Tolerance</span>
                       </label>
                       <select
                         value={riskAppetite}
                         onChange={(e) => setRiskAppetite(e.target.value)}
                         className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700 font-sans"
                       >
-                        <option>Low</option>
-                        <option>Medium</option>
-                        <option>High</option>
+                        <option value="">Let AI Evaluate (Auto)</option>
+                        <option value="Low">Low (Preserve & Protect)</option>
+                        <option value="Medium">Medium (Balanced Growth)</option>
+                        <option value="High">High (High Risk / Aggressive)</option>
                       </select>
+                      <p className="text-[9px] text-zinc-600">Your comfort level with downside uncertainty.</p>
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                         <Calendar size={11} />
-                        <span>Time Horizon</span>
+                        <span>Outlook Timeline</span>
                       </label>
                       <input
                         type="text"
-                        placeholder="e.g. 5 Years"
+                        placeholder="e.g. 5 Years (Let AI decide if empty)"
                         value={timeHorizon}
                         onChange={(e) => setTimeHorizon(e.target.value)}
                         className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
                       />
+                      <p className="text-[9px] text-zinc-600">Target simulation duration (years or months).</p>
                     </div>
 
                     <div className="space-y-1 md:col-span-2">
                       <label className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1">
                         <Briefcase size={11} />
-                        <span>Long Term Career Goals</span>
+                        <span>Primary Goals / Aspirations</span>
                       </label>
                       <input
                         type="text"
@@ -464,6 +471,7 @@ export const Dashboard: React.FC = () => {
                         onChange={(e) => setGoals(e.target.value)}
                         className="w-full bg-zinc-900/40 border border-zinc-850 rounded-lg p-2.5 text-xs text-zinc-300 placeholder-zinc-650 focus:outline-none focus:border-zinc-700"
                       />
+                      <p className="text-[9px] text-zinc-600">Your core ambitions or target achievements.</p>
                     </div>
                   </motion.div>
                 )}
